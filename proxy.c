@@ -150,11 +150,6 @@ void handle_request_response(int connfd) {
 
   /* ----------------------------- Parsing the URI ---------------------------- */
   split_uri(connfd, uri, hostname, pathname);
-  char buf2[MAXLINE];
-  sprintf(buf2, "host: %s", hostname);
-  Rio_writen(connfd, buf2, strlen(buf2));
-  sprintf(buf2, "\npath: %s", pathname);
-  Rio_writen(connfd, buf2, strlen(buf2));
 
   /* -------------------------- Generate The Request -------------------------- */
   // generate_request(rio_request, method, hostname, pathname, version);
