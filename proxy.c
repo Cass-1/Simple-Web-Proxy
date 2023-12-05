@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
     handle_request_response(connfd);
 
     // closes the Accepted socket
+    printf("closes");
     Close(connfd);
   }
 
@@ -100,6 +101,11 @@ void read_requesthdrs(rio_t *rp) {
   return;
 }
 
+void parse_uri(char* uri, char* hostname, char* pathname){
+
+}
+
+
 /* -------------------------------------------------------------------------- */
 /*                           handle_request_response                          */
 /* -------------------------------------------------------------------------- */
@@ -121,6 +127,22 @@ void handle_request_response(int connfd) {
   if (strcasecmp(method, "GET")) { // line:netp:doit:beginrequesterr
     clienterror(connfd, method, "501", "Not Implemented","Tiny does not implement this method");
     return;
-  }                       // line:netp:doit:endrequesterr
-  read_requesthdrs(&rio); // line:netp:doit:readrequesthdrs
+  }
+
+  printf("%s", version);
+
+
+  /* --------------------------- Check Http Version --------------------------- */
+  if(strncmp(version, "HTTP/1.0") != 0){
+    // print error message
+    clienterror(fd, method, "Wrong Version Format");
+
+    // set HTTP version
+    strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
+  }
+  
+
+  parse_uri();
+
+
 }
