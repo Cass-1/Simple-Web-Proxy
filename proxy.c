@@ -101,10 +101,10 @@ void read_requesthdrs(rio_t *rp) {
   return;
 }
 
-void parse_uri(char* uri, char* hostname, char* pathname){
+void split_uri(int fd, char* uri, char** hostname, char** pathname){
+  
 
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*                           handle_request_response                          */
@@ -113,19 +113,20 @@ void parse_uri(char* uri, char* hostname, char* pathname){
 // handle one client/server interaction
 void handle_request_response(int connfd) {
   struct stat sbuf;
+  char* hostname, *pathname;
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
-  rio_t rio;
+  rio_t rio_request;
 
   /* ---------------------- Read request line and headers ---------------------*/
-  Rio_readinitb(&rio, connfd);
-  if (!Rio_readlineb(&rio, buf, MAXLINE)) { // line:netp:doit:readrequest
+  Rio_readinitb(&rio_request, connfd);
+  if (!Rio_readlineb(&rio_request, buf, MAXLINE)) { // line:netp:doit:readrequest
     return;
   }
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version); // line:netp:doit:parserequest
   if (strcasecmp(method, "GET")) { // line:netp:doit:beginrequesterr
-    clienterror(connfd, method, "501", "Not Implemented","Tiny does not implement this method");
+    clienterror(connfd, method, "501", "Not Implemented","Non GET methods are not implemented");
     return;
   }
 
@@ -133,16 +134,31 @@ void handle_request_response(int connfd) {
 
 
   /* --------------------------- Check Http Version --------------------------- */
-  if(strncmp(version, "HTTP/1.0") != 0){
+  if(strcmp(version, "HTTP/1.0") != 0){
     // print error message
-    clienterror(fd, method, "Wrong Version Format");
+    clienterror(connfd, method, "501", "Note Implemented", "Only HTTP/1.0 is Implemented");
 
     // set HTTP version
     strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
   }
+
+  /* ----------------------------- Parsing the URI ---------------------------- */
+  split_uri(connfd, uri, hostname, pathname);
+
+  char buf2[MAXLINE];
+  char* host_and_path = strtok(uri, "//");
+  char* host = strtok(NULL, "/");
+  char* path = strtok(NULL, "");
+
   
 
-  parse_uri();
+  sprintf(buf2, "host: %s", host);
+  Rio_writen(connfd, buf2, strlen(buf2));
+  sprintf(buf2, "\npath: %s", path);
+  Rio_writen(connfd, buf2, strlen(buf2));
+
+  /* -------------------------- Generate The Request -------------------------- */
+  // generate_request(rio_request, method, &hostname, &pathname, version);
 
 
 }
