@@ -4,8 +4,7 @@
 # Unignore all with extensions
 !*.*
 
-# Unignore all dirs
-!*/
-
 # Ignore object files
 *.o
+
+*.json
