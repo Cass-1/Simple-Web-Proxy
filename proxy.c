@@ -106,10 +106,16 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname){
   char* host_and_path = strtok(uri, "//");
   char* host = strtok(NULL, "/");
   char* path = strtok(NULL, "");
+  char* slash_path = malloc(sizeof(path)+1);
+
+  //TODO: Fix the formatting of path, add the "/" at the front
+  strcpy(slash_path, "/");
+  strcat(slash_path, path);
 
   strcpy(hostname, host);
-  strcpy(pathname, path);
+  strcpy(pathname, slash_path);
 
+  free(slash_path);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -147,12 +153,24 @@ void handle_request_response(int connfd) {
     // set HTTP version
     strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
   }
+  char buf2[MAXLINE];
 
   /* ----------------------------- Parsing the URI ---------------------------- */
   split_uri(connfd, uri, hostname, pathname);
 
+  char buffer[MAXLINE];
+
+  // testing
+  // sprintf(buffer, "%s\n", hostname);
+  // Rio_writen(connfd, buffer, strlen(buffer));
+  // sprintf(buffer, "%s\n", pathname);
+  // Rio_writen(connfd, buffer, strlen(buffer));
+
   /* -------------------------- Generate The Request -------------------------- */
   // generate_request(rio_request, method, hostname, pathname, version);
 
+  /* ------------------------- Send Request to Server ------------------------- */
+
+  /* --------------------- Send Server Response to Client --------------------- */
 
 }
