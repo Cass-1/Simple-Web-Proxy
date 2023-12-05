@@ -11,20 +11,29 @@ static const char *user_agent_hdr =
     "Firefox/10.0.3\r\n";
 
 int main(int argc, char **argv) {
-  int listenfd, connfd;
-  socklen_t clientlen;
-  struct sockaddr_storage clientaddr; /* Enough space for any address */
-  char client_hostname[MAXLINE], client_port[MAXLINE];
+
 
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(0);
   }
 
-  // opens a lisening (looking for new conenctions) port to argv[1]
-  listenfd = Open_listenfd(argv[1]);
+  // have the web browser (client) connect to proxy (server)
+  proxy_server(argv[1]);
 
-  // while the server is connected
+  return 0;
+}
+
+// have the web browser connect to the web proxy
+void proxy_server(char* port){
+  int listenfd, connfd;
+  socklen_t clientlen;
+  struct sockaddr_storage clientaddr; /* Enough space for any address */
+  char client_hostname[MAXLINE], client_port[MAXLINE];
+
+  // opens a lisening (looking for new conenctions) port to argv[1]
+  listenfd = Open_listenfd(port);
+
   while (1) {
     clientlen = sizeof(struct sockaddr_storage);
 
@@ -32,16 +41,15 @@ int main(int argc, char **argv) {
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
 
     // converts socket address to host and service
-    Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE,
-                client_port, MAXLINE, 0);
+    Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
 
     // print the connection
     printf("Connected to (%s, %s)\n", client_hostname, client_port);
 
-    // closes teh Accepted socket
-    // Close(connfd);
+    // parse the request sent from the web browser
+    // parse_request();    
+
+    // closes the Accepted socket
+    Close(connfd);
   }
-  exit(0);
-  printf("%s", user_agent_hdr);
-  return 0;
 }
