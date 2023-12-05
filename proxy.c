@@ -101,8 +101,14 @@ void read_requesthdrs(rio_t *rp) {
   return;
 }
 
-void split_uri(int fd, char* uri, char** hostname, char** pathname){
-  
+void split_uri(int connfd, char* uri, char* hostname, char* pathname){
+  char buf2[MAXLINE];
+  char* host_and_path = strtok(uri, "//");
+  char* host = strtok(NULL, "/");
+  char* path = strtok(NULL, "");
+
+  strcpy(hostname, host);
+  strcpy(pathname, path);
 
 }
 
@@ -113,7 +119,7 @@ void split_uri(int fd, char* uri, char** hostname, char** pathname){
 // handle one client/server interaction
 void handle_request_response(int connfd) {
   struct stat sbuf;
-  char* hostname, *pathname;
+  char hostname[MAXLINE/2], pathname[MAXLINE/2];
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
   rio_t rio_request;
@@ -144,21 +150,14 @@ void handle_request_response(int connfd) {
 
   /* ----------------------------- Parsing the URI ---------------------------- */
   split_uri(connfd, uri, hostname, pathname);
-
   char buf2[MAXLINE];
-  char* host_and_path = strtok(uri, "//");
-  char* host = strtok(NULL, "/");
-  char* path = strtok(NULL, "");
-
-  
-
-  sprintf(buf2, "host: %s", host);
+  sprintf(buf2, "host: %s", hostname);
   Rio_writen(connfd, buf2, strlen(buf2));
-  sprintf(buf2, "\npath: %s", path);
+  sprintf(buf2, "\npath: %s", pathname);
   Rio_writen(connfd, buf2, strlen(buf2));
 
   /* -------------------------- Generate The Request -------------------------- */
-  // generate_request(rio_request, method, &hostname, &pathname, version);
+  // generate_request(rio_request, method, hostname, pathname, version);
 
 
 }
