@@ -1,5 +1,6 @@
 #include "csapp.h"
 #include <stdio.h>
+#include <string.h>
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -101,6 +102,7 @@ void read_requesthdrs(rio_t *rp) {
   return;
 }
 
+// splits the uri into the hostname and the path
 void split_uri(int connfd, char* uri, char* hostname, char* pathname){
   char buf2[MAXLINE];
   char* host_and_path = strtok(uri, "//");
@@ -108,14 +110,64 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname){
   char* path = strtok(NULL, "");
   char* slash_path = malloc(sizeof(path)+1);
 
-  //TODO: Fix the formatting of path, add the "/" at the front
+  // add the '/' to the front of the path
   strcpy(slash_path, "/");
   strcat(slash_path, path);
 
+  // copy the local strings to their external counterparts
   strcpy(hostname, host);
   strcpy(pathname, slash_path);
 
   free(slash_path);
+}
+
+// generates the proxy's GET request
+void generate_request(rio_t rio_request, char* method, char* hostname, char* pathname, char* version, char* generated_request){
+  char line_buf[MAXLINE];
+  char temp[MAXLINE];
+
+  int host = 0, connection = 0, proxy_connection = 0;
+
+  // read through the rio_request from the client
+  Rio_readlineb(&rio_request, line_buf, MAXLINE);
+  while(strcmp(line_buf, "\r\n")) {
+    // check the line for headers
+    if (strstr(line_buf, "Host:")){
+      sprintf(temp, "Host: %s\r\n", hostname);
+      strcat(generated_request, temp);
+      host = 1;
+    }
+    // else if (strstr(line_buf, "User-Agent:")){
+    //   strcat(generated_request, );
+    // }
+    else if (strstr(line_buf, "Connection:")){
+      strcat(generated_request, "Connection: close\r\n");
+      connection = 1;
+    }
+    else if (strstr(line_buf, "Proxy-Connection:")) {
+      strcat(generated_request, "Proxy-Connection: close\r\n");
+      proxy_connection = 1;
+    }
+    else{
+      strcat(generated_request, line_buf);
+    }
+
+    Rio_readlineb(&rio_request, line_buf, MAXLINE);
+  }
+
+  if(host == 0){
+    sprintf(temp, "Host: %s\r\n", hostname);
+    strcat(generated_request, temp);
+  }
+
+  if(connection == 0){
+    strcat(generated_request, "Connection: close\r\n");
+  }
+
+  if(proxy_connection == 0){
+    strcat(generated_request, "Proxy-Connection: close\r\n");
+  }
+  
 }
 
 /* -------------------------------------------------------------------------- */
@@ -129,6 +181,7 @@ void handle_request_response(int connfd) {
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
   rio_t rio_request;
+  char generated_request[MAX_OBJECT_SIZE];
 
   /* ---------------------- Read request line and headers ---------------------*/
   Rio_readinitb(&rio_request, connfd);
@@ -158,16 +211,18 @@ void handle_request_response(int connfd) {
   /* ----------------------------- Parsing the URI ---------------------------- */
   split_uri(connfd, uri, hostname, pathname);
 
-  char buffer[MAXLINE];
 
   // testing
+  // char buffer[MAXLINE];
   // sprintf(buffer, "%s\n", hostname);
   // Rio_writen(connfd, buffer, strlen(buffer));
   // sprintf(buffer, "%s\n", pathname);
   // Rio_writen(connfd, buffer, strlen(buffer));
 
   /* -------------------------- Generate The Request -------------------------- */
-  // generate_request(rio_request, method, hostname, pathname, version);
+  generate_request(rio_request, method, hostname, pathname, version, generated_request);
+
+  // Rio_writen(connfd, generated_request, strlen(generated_request));
 
   /* ------------------------- Send Request to Server ------------------------- */
 
