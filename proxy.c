@@ -16,7 +16,7 @@ static const char *user_agent_hdr =
 /* -------------------------------------------------------------------------- */
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void read_requesthdrs(rio_t *rp);
-void handle_request_response(int connfd);
+void handle_request_response(int connfd, char* port);
 
 /* -------------------------------------------------------------------------- */
 /*                                    main                                    */
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     printf("Connected to (%s, %s)\n", client_hostname, client_port);
 
     // handle one client/server itneraction
-    handle_request_response(connfd);
+    handle_request_response(connfd, argv[1]);
 
     // closes the Accepted socket
     printf("closes");
@@ -108,11 +108,14 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname){
   char* host_and_path = strtok(uri, "//");
   char* host = strtok(NULL, "/");
   char* path = strtok(NULL, "");
-  char* slash_path = malloc(sizeof(path)+1);
+  char* slash_path = malloc(MAXLINE);
 
   // add the '/' to the front of the path
-  strcpy(slash_path, "/");
-  strcat(slash_path, path);
+  if(path != NULL){
+    strcpy(slash_path, "/");
+    strcat(slash_path, path);
+  }
+  
 
   // copy the local strings to their external counterparts
   strcpy(hostname, host);
@@ -177,13 +180,14 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
 /* -------------------------------------------------------------------------- */
 
 // handle one client/server interaction
-void handle_request_response(int connfd) {
+void handle_request_response(int connfd, char* port) {
   struct stat sbuf;
   char hostname[MAXLINE/2], pathname[MAXLINE/2];
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
-  rio_t rio_request;
+  rio_t rio_request, rio_response;
   char generated_request[MAX_OBJECT_SIZE];
+  int clientfd;
 
   /* ---------------------- Read request line and headers ---------------------*/
   Rio_readinitb(&rio_request, connfd);
@@ -227,6 +231,16 @@ void handle_request_response(int connfd) {
   // Rio_writen(connfd, generated_request, strlen(generated_request));
 
   /* ------------------------- Send Request to Server ------------------------- */
+  clientfd = Open_clientfd(hostname, port);
+  Rio_readinitb(&rio_response, clientfd);
+  Rio_writen(clientfd, generated_request, strlen(generated_request));
+
+  char responseBuf[MAXLINE];
+    int n;
+    while( (n = Rio_readnb(&rio_response, responseBuf, MAXLINE)) != 0 ){
+        Rio_writen(connfd, responseBuf, n);
+    }
+    Close(clientfd);
 
   /* --------------------- Send Server Response to Client --------------------- */
 
