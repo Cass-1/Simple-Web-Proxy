@@ -167,6 +167,8 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
   if(proxy_connection == 0){
     strcat(generated_request, "Proxy-Connection: close\r\n");
   }
+
+  strcat(generated_request, "\r\n");
   
 }
 
