@@ -16,7 +16,7 @@ static const char *user_agent_hdr =
 /* -------------------------------------------------------------------------- */
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void read_requesthdrs(rio_t *rp);
-void handle_request_response(int connfd, char* port);
+void handle_request_response(int connfd);
 
 /* -------------------------------------------------------------------------- */
 /*                                    main                                    */
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     printf("Connected to (%s, %s)\n", client_hostname, client_port);
 
     // handle one client/server itneraction
-    handle_request_response(connfd, argv[1]);
+    handle_request_response(connfd);
 
     // closes the Accepted socket
     printf("closes");
@@ -129,9 +129,10 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
   char line_buf[MAXLINE];
   char temp[MAXLINE];
 
-  int host = 0, connection = 0, proxy_connection = 0;
+  int host = 0, connection = 0, proxy_connection = 0, get = 0;
 
   // read through the rio_request from the client
+  sprintf(generated_request, "GET %s %s\r\n", pathname, version);
   Rio_readlineb(&rio_request, line_buf, MAXLINE);
   while(strcmp(line_buf, "\r\n")) {
     // check the line for headers
@@ -142,6 +143,11 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
     }
     // else if (strstr(line_buf, "User-Agent:")){
     //   strcat(generated_request, );
+    // }
+    // else if (strstr(line_buf, "GET")){
+    //   sprintf(temp, "GET %s HTTP/1.0", pathname);
+    //   strcat(generate_request, temp);
+    //   get = 1;
     // }
     else if (strstr(line_buf, "Connection:")){
       strcat(generated_request, "Connection: close\r\n");
@@ -171,6 +177,11 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
     strcat(generated_request, "Proxy-Connection: close\r\n");
   }
 
+  // if(get == 0){
+  //   sprintf(temp, "GET %s HTTP/1.0", pathname);
+  //   strcat(generate_request, temp);
+  // }
+
   strcat(generated_request, "\r\n");
   
 }
@@ -180,7 +191,7 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
 /* -------------------------------------------------------------------------- */
 
 // handle one client/server interaction
-void handle_request_response(int connfd, char* port) {
+void handle_request_response(int connfd) {
   struct stat sbuf;
   char hostname[MAXLINE/2], pathname[MAXLINE/2];
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -227,21 +238,32 @@ void handle_request_response(int connfd, char* port) {
 
   /* -------------------------- Generate The Request -------------------------- */
   generate_request(rio_request, method, hostname, pathname, version, generated_request);
+  char buffer[MAXLINE];
+  sprintf(buffer, "request: %s\n", generated_request);
+  Rio_writen(connfd, buffer, strlen(buffer));
 
   // Rio_writen(connfd, generated_request, strlen(generated_request));
 
-  /* ------------------------- Send Request to Server ------------------------- */
-  clientfd = Open_clientfd(hostname, port);
-  Rio_readinitb(&rio_response, clientfd);
+  //TODO: make my proxy work when the port number is inlcuded (ex http://127.0.0.1:8888)
+  // connect to the server
+  clientfd = Open_clientfd(hostname, "8888");
+  
+  // send it the request
   Rio_writen(clientfd, generated_request, strlen(generated_request));
 
-  char responseBuf[MAXLINE];
-    int n;
-    while( (n = Rio_readnb(&rio_response, responseBuf, MAXLINE)) != 0 ){
-        Rio_writen(connfd, responseBuf, n);
-    }
-    Close(clientfd);
+  // get server's reaponse
+  Rio_readinitb(&rio_response, clientfd);
 
-  /* --------------------- Send Server Response to Client --------------------- */
+  char responseBuf[MAXLINE];
+  ssize_t n;
+  while( (n = Rio_readnb(&rio_response, responseBuf, MAXLINE)) > 0 ){
+    Rio_writen(connfd, responseBuf, n); //FIXME: I think that nothing is being returned
+    char buffer[MAXLINE];
+    sprintf(buffer, "response: %s\n", hostname);
+    Rio_writen(connfd, buffer, strlen(buffer));
+  }
+  // clienterror(connfd, method, "here", "here", "here");
+  Close(clientfd);
+
 
 }
