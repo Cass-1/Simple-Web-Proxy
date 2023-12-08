@@ -12,12 +12,12 @@ static const char *user_agent_hdr =
     "Firefox/10.0.3\r\n";
 
 /* -------------------------------------------------------------------------- */
-/*                            Function Declarations                           */
+/*                              Function Headers                              */
 /* -------------------------------------------------------------------------- */
 void handle_request_response(int connfd);
 
 /* -------------------------------------------------------------------------- */
-/*                                    main                                    */
+/*                                    Main                                    */
 /* -------------------------------------------------------------------------- */
 int main(int argc, char **argv) {
   int listenfd, connfd;
@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
   struct sockaddr_storage clientaddr; /* Enough space for any address */
   char client_hostname[MAXLINE], client_port[MAXLINE];
 
+  //checks that a port number was given
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(0);
@@ -101,7 +102,6 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname, char* serv
     if(tok2 != NULL){
       strcat(pathname, tok2); 
     }
-    // clienterror(connfd, "", "Got inside", "", "");
 }
 
 // generates the proxy's GET request
@@ -111,24 +111,18 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
 
   int host = 0, connection = 0, proxy_connection = 0, get = 0;
 
-  // read through the rio_request from the client
+  // add the get request
   sprintf(generated_request, "GET %s %s\r\n", pathname, version);
+  // read the first line of the rio_request
   Rio_readlineb(&rio_request, line_buf, MAXLINE);
+  // while not at the end of the request
   while(strcmp(line_buf, "\r\n")) {
-    // check the line for headers
+    // check the line for headers and replace them with what we want, don't change anything else
     if (strstr(line_buf, "Host:")){
       sprintf(temp, "Host: %s:%s\r\n", hostname, server_port);
       strcat(generated_request, temp);
       host = 1;
     }
-    // else if (strstr(line_buf, "User-Agent:")){
-    //   strcat(generated_request, );
-    // }
-    // else if (strstr(line_buf, "GET")){
-    //   sprintf(temp, "GET %s HTTP/1.0", pathname);
-    //   strcat(generate_request, temp);
-    //   get = 1;
-    // }
     else if (strstr(line_buf, "Connection:")){
       strcat(generated_request, "Connection: close\r\n");
       connection = 1;
@@ -140,10 +134,11 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
     else{
       strcat(generated_request, line_buf);
     }
-
+    // read the next line
     Rio_readlineb(&rio_request, line_buf, MAXLINE);
   }
 
+  // if these fields were not present in the request, add them
   if(host == 0){
     sprintf(temp, "Host: %s\r\n", hostname);
     strcat(generated_request, temp);
@@ -157,11 +152,7 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
     strcat(generated_request, "Proxy-Connection: close\r\n");
   }
 
-  // if(get == 0){
-  //   sprintf(temp, "GET %s HTTP/1.0", pathname);
-  //   strcat(generate_request, temp);
-  // }
-
+  // add the terminating sequence to the newly contructed generated_reqest
   strcat(generated_request, "\r\n");
   
 }
@@ -183,13 +174,15 @@ void handle_request_response(int connfd) {
 
   /* ---------------------- Read request line and headers ---------------------*/
   Rio_readinitb(&rio_request, connfd);
-  if (!Rio_readlineb(&rio_request, buf, MAXLINE)) { // line:netp:doit:readrequest
+  // tries to read from connfd
+  if (!Rio_readlineb(&rio_request, buf, MAXLINE)) { 
     return;
   }
+  // prints out result
   printf("%s", buf);
-  sscanf(buf, "%s %s %s", method, uri, version); // line:netp:doit:parserequest
-  if (strcasecmp(method, "GET")) { // line:netp:doit:beginrequesterr
-    // clienterror(connfd, method, "501", "Not Implemented","Non GET methods are not implemented");
+  // gets extracts the information read
+  sscanf(buf, "%s %s %s", method, uri, version); 
+  if (strcasecmp(method, "GET")) { 
     return;
   }
 
@@ -197,54 +190,41 @@ void handle_request_response(int connfd) {
 
 
   /* --------------------------- Check Http Version --------------------------- */
+  // check if the HTTP version is 1.0
   if(strcmp(version, "HTTP/1.0") != 0){
-    // print error message
-    // clienterror(connfd, method, "501", "Not Implemented", "Only HTTP/1.0 is Implemented");
-
     // set HTTP version
     strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
   }
-  char buf2[MAXLINE];
 
   /* ----------------------------- Parsing the URI ---------------------------- */
+  char buf2[MAXLINE];
   // clienterror(connfd, uri, "Got here", "", "");
   split_uri(connfd, uri, hostname, pathname, server_port);
 
-
-  // testing
-  // char buffer[MAXLINE];
-  // sprintf(buffer, "%s\n", hostname);
-  // Rio_writen(connfd, buffer, strlen(buffer));
-  // sprintf(buffer, "%s\n", pathname);
-  // Rio_writen(connfd, buffer, strlen(buffer));
-
   /* -------------------------- Generate The Request -------------------------- */
   generate_request(rio_request, method, hostname, pathname, version, server_port, generated_request);
-  char buffer[MAXLINE];
-  // sprintf(buffer, "request: %s\n", generated_request);
-  // Rio_writen(connfd, buffer, strlen(buffer));
 
-  // Rio_writen(connfd, generated_request, strlen(generated_request));
+  /* ---------------------------- Forward the Request ---------------------------- */
 
   // connect to the server
   clientfd = Open_clientfd(hostname, server_port);
   
-  // send it the request
+  // forward the request
   Rio_writen(clientfd, generated_request, strlen(generated_request));
 
-  // get server's reaponse
+  /* ------------------------ Get the Server's Response ----------------------- */
   Rio_readinitb(&rio_response, clientfd);
 
+  char buffer[MAXLINE];
   char responseBuf[MAXLINE];
   ssize_t n;
+
+  // read the servers response line by line
   while( (n = Rio_readnb(&rio_response, responseBuf, MAXLINE)) > 0 ){
-    Rio_writen(connfd, responseBuf, n); //FIXME: I think that nothing is being returned
-    char buffer[MAXLINE];
-    sprintf(buffer, "response: %s\n", responseBuf);
+    Rio_writen(connfd, responseBuf, n);
+    sprintf(buffer, "%s\n", responseBuf);
     Rio_writen(connfd, buffer, strlen(buffer));
   }
-  // clienterror(connfd, method, "here", "here", "here");
+  // closes the socket for connecting to hte server
   Close(clientfd);
-
-
 }
