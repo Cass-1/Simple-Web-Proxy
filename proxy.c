@@ -142,7 +142,7 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname, char* serv
     if(tok2 != NULL){
       strcat(pathname, tok2); 
     }
-    clienterror(connfd, "", "Got inside", "", "");
+    // clienterror(connfd, "", "Got inside", "", "");
 }
 
 // generates the proxy's GET request
@@ -230,7 +230,7 @@ void handle_request_response(int connfd) {
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version); // line:netp:doit:parserequest
   if (strcasecmp(method, "GET")) { // line:netp:doit:beginrequesterr
-    clienterror(connfd, method, "501", "Not Implemented","Non GET methods are not implemented");
+    // clienterror(connfd, method, "501", "Not Implemented","Non GET methods are not implemented");
     return;
   }
 
@@ -240,7 +240,7 @@ void handle_request_response(int connfd) {
   /* --------------------------- Check Http Version --------------------------- */
   if(strcmp(version, "HTTP/1.0") != 0){
     // print error message
-    clienterror(connfd, method, "501", "Not Implemented", "Only HTTP/1.0 is Implemented");
+    // clienterror(connfd, method, "501", "Not Implemented", "Only HTTP/1.0 is Implemented");
 
     // set HTTP version
     strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
@@ -248,7 +248,7 @@ void handle_request_response(int connfd) {
   char buf2[MAXLINE];
 
   /* ----------------------------- Parsing the URI ---------------------------- */
-  clienterror(connfd, uri, "Got here", "", "");
+  // clienterror(connfd, uri, "Got here", "", "");
   split_uri(connfd, uri, hostname, pathname, server_port);
 
 
