@@ -115,7 +115,7 @@ int split_uri(int connfd, char* uri, char* hostname, char* pathname, char* serve
 }
 
 // generates the proxy's GET request
-void generate_request(rio_t rio_request, char* method, char* hostname, char* pathname, char* version, char* server_port, char* generated_request){
+void generate_request(int connfd, rio_t rio_request, char* method, char* hostname, char* pathname, char* version, char* server_port, char* generated_request){
   char line_buf[MAXLINE];
   char temp[MAXLINE];
 
@@ -123,6 +123,17 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
 
   // add the get request
   sprintf(generated_request, "GET %s %s\r\n", pathname, version);
+
+  // if there is nothing to parse in the RIO request
+  if(strcmp(rio_request.rio_bufptr, "") == 0){
+    sprintf(temp, "Host: %s\r\n", hostname);
+    strcat(generated_request, temp);
+    strcat(generated_request, "Connection: close\r\n");
+    strcat(generated_request, "Proxy-Connection: close\r\n");
+    strcat(generated_request, "\r\n");
+    return;
+  }
+
   // read the first line of the rio_request
   Rio_readlineb(&rio_request, line_buf, MAXLINE);
   // while not at the end of the request
@@ -247,7 +258,8 @@ void handle_request_response(int connfd) {
   }
 
   /* -------------------------- Generate The Request -------------------------- */
-  generate_request(rio_request, method, hostname, pathname, version, server_port, generated_request);
+  generate_request(connfd, rio_request, method, hostname, pathname, version, server_port, generated_request);
+  clienterror(connfd, method, "TEsting", "", "");
   
   /* ---------------------------- Forward the Request ---------------------------- */
 
