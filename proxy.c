@@ -64,31 +64,6 @@ int main(int argc, char **argv) {
 /*                  handle_request_response helper functions                  */
 /* -------------------------------------------------------------------------- */
 
-// returns an error message to hte client
-void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
-  char buf[MAXLINE];
-
-  /* Print the HTTP response headers */
-  sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "Content-type: text/html\r\n\r\n");
-  Rio_writen(fd, buf, strlen(buf));
-
-  /* Print the HTTP response body */
-  sprintf(buf, "<html><title>Tiny Error</title>");
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "<body bgcolor="
-               "ffffff"
-               ">\r\n");
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "%s: %s\r\n", errnum, shortmsg);
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "<p>%s: %s\r\n", longmsg, cause);
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "<hr><em>The Tiny Web server</em>\r\n");
-  Rio_writen(fd, buf, strlen(buf));
-}
-
 // reads the request header
 void read_requesthdrs(rio_t *rp) {
   char buf[MAXLINE];
