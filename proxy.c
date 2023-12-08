@@ -16,6 +16,7 @@ static const char *user_agent_hdr =
 /* -------------------------------------------------------------------------- */
 void handle_request_response(int connfd);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+int my_Open_clientfd(char *hostname, char *port);
 
 /* -------------------------------------------------------------------------- */
 /*                                    Main                                    */
@@ -206,6 +207,17 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
 }
 
+int my_Open_clientfd(char *hostname, char *port) 
+{
+    int rc;
+
+    if ((rc = open_clientfd(hostname, port)) < 0){
+      return -1;
+    }
+      
+    return rc;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                           handle_request_response                          */
 /* -------------------------------------------------------------------------- */
@@ -259,18 +271,23 @@ void handle_request_response(int connfd) {
 
   /* -------------------------- Generate The Request -------------------------- */
   generate_request(connfd, rio_request, method, hostname, pathname, version, server_port, generated_request);
-  clienterror(connfd, method, "TEsting", "", "");
+  // clienterror(connfd, method, "TEsting", "", "");
   
   /* ---------------------------- Forward the Request ---------------------------- */
 
   // connect to the server
-  clientfd = Open_clientfd(hostname, server_port);
+  clientfd = my_Open_clientfd(hostname, server_port);
+  if (clientfd == -1){
+    clienterror(connfd, method, "502", "ERR_CONNECTION_REFUSED", "The connection to the server was refused");
+    return;
+  }
   
   // forward the request
   Rio_writen(clientfd, generated_request, strlen(generated_request));
 
   /* ------------------------ Get the Server's Response ----------------------- */
   Rio_readinitb(&rio_response, clientfd);
+  // if(rio_response.rio_bufptr)
 
   char buffer[MAXLINE];
   char responseBuf[MAXLINE];
