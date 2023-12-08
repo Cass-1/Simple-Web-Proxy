@@ -262,12 +262,11 @@ void handle_request_response(int connfd) {
   /* -------------------------- Generate The Request -------------------------- */
   generate_request(rio_request, method, hostname, pathname, version, server_port, generated_request);
   char buffer[MAXLINE];
-  sprintf(buffer, "request: %s\n", generated_request);
-  Rio_writen(connfd, buffer, strlen(buffer));
+  // sprintf(buffer, "request: %s\n", generated_request);
+  // Rio_writen(connfd, buffer, strlen(buffer));
 
   // Rio_writen(connfd, generated_request, strlen(generated_request));
 
-  //TODO: make my proxy work when the port number is inlcuded (ex http://127.0.0.1:8888)
   // connect to the server
   clientfd = Open_clientfd(hostname, server_port);
   
