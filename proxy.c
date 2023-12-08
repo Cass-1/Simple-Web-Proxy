@@ -183,7 +183,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
 
     /* Print the HTTP response body */
-    sprintf(buf, "<html><title>Tiny Error</title>");
+    sprintf(buf, "<html><title>Proxy Error</title>");
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "<body bgcolor=""ffffff"">\r\n");
     Rio_writen(fd, buf, strlen(buf));
@@ -191,7 +191,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "<p>%s: %s\r\n", longmsg, cause);
     Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "<hr><em>The Tiny Web server</em>\r\n");
+    sprintf(buf, "<hr><em>Proxy Server</em>\r\n");
     Rio_writen(fd, buf, strlen(buf));
 }
 
