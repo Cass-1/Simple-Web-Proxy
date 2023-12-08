@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
   //checks that a port number was given
   if (argc != 2) {
-    fprintf(stderr, "usage: %s <port>\n", argv[0]);
+    //fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(0);
   }
 
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     printf("Connected to (%s, %s)\n", client_hostname, client_port);
 
     // handle one client/server itneraction
-    fprintf(stdout, "before\n");
+    //fprintf(stdout, "before\n");
     handle_request_response(connfd);
 
     // closes the Accepted socket
@@ -81,11 +81,6 @@ int split_uri(int connfd, char* uri, char* hostname, char* pathname, char* serve
 
     // grab the domain name and the port number if there is one
     char* tok = strtok_r(uri, "//", &ref1);
-
-    fprintf(stdout, "tok: %s:", tok);
-    if(strcmp(tok, uri) == 0){
-      return -1;
-    }
 
     tok = strtok_r(ref1, "/", &ref1);
     strcpy(host_and_port, tok);
@@ -244,7 +239,7 @@ void handle_request_response(int connfd) {
   /* ----------------------------- Parsing the URI ---------------------------- */
   char buf2[MAXLINE];
   // clienterror(connfd, uri, "Got here", "", "");
-  fprintf(stdout, "\nafter\n");
+  //fprintf(stdout, "\nafter\n");
   flag = split_uri(connfd, uri, hostname, pathname, server_port);
   if(flag == -1){
     clienterror(connfd, method, "Bad Request", "The uri was not formatted correctly", "");
