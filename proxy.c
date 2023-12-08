@@ -14,8 +14,6 @@ static const char *user_agent_hdr =
 /* -------------------------------------------------------------------------- */
 /*                            Function Declarations                           */
 /* -------------------------------------------------------------------------- */
-void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
-void read_requesthdrs(rio_t *rp);
 void handle_request_response(int connfd);
 
 /* -------------------------------------------------------------------------- */
@@ -63,20 +61,6 @@ int main(int argc, char **argv) {
 /* -------------------------------------------------------------------------- */
 /*                  handle_request_response helper functions                  */
 /* -------------------------------------------------------------------------- */
-
-// reads the request header
-void read_requesthdrs(rio_t *rp) {
-  char buf[MAXLINE];
-
-  Rio_readlineb(rp, buf, MAXLINE);
-  printf("%s", buf);
-  while (strcmp(buf, "\r\n")) { // line:netp:readhdrs:checkterm
-    Rio_readlineb(rp, buf, MAXLINE);
-    printf("%s", buf);
-  }
-  return;
-}
-
 
 // given a uri (url) splits it into the hostname, pathname and the server port
 // if no server port is given in the uri, then the server port is set to 80
