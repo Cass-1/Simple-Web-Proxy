@@ -102,30 +102,51 @@ void read_requesthdrs(rio_t *rp) {
   return;
 }
 
-// splits the uri into the hostname and the path
-void split_uri(int connfd, char* uri, char* hostname, char* pathname){
-  char buf2[MAXLINE];
-  char* host_and_path = strtok(uri, "//");
-  char* host = strtok(NULL, "/");
-  char* path = strtok(NULL, "");
-  char* slash_path = malloc(MAXLINE);
 
-  // add the '/' to the front of the path
-  if(path != NULL){
-    strcpy(slash_path, "/");
-    strcat(slash_path, path);
-  }
-  
+// given a uri (url) splits it into the hostname, pathname and the server port
+// if no server port is given in the uri, then the server port is set to 80
+void split_uri(int connfd, char* uri, char* hostname, char* pathname, char* server_port){
+    char* ref1, ref2;
+    char host_and_port[1000];
+    char uri2[1000];
+    strcpy(uri2, uri);
 
-  // copy the local strings to their external counterparts
-  strcpy(hostname, host);
-  strcpy(pathname, slash_path);
+    // grab the domain name and the port number if there is one
+    char* tok = strtok_r(uri, "//", &ref1);
+    tok = strtok_r(ref1, "/", &ref1);
+    strcpy(host_and_port, tok);
 
-  free(slash_path);
+    // checks if there is a port number
+    if(strstr(host_and_port, ":")){
+        // gets the domain name
+        tok = strtok_r(host_and_port, ":", &ref2);
+        strcpy(hostname, tok);
+        // gets the port number
+        tok = strtok_r(NULL, "/", &ref2);
+        strcpy(server_port, tok);
+    }
+    else{
+        // gets the domain name
+        tok = strtok_r(host_and_port, "/", &ref2);
+        strcpy(hostname, tok);
+        // sets the port number
+        strcpy(server_port, "80");
+    }
+    // get the pathname
+    char* tok2 = strtok(uri2, "//");
+    tok2 = strtok(NULL, "/");
+    tok2 = strtok(NULL, "");
+
+    // add the '/' at the beginning
+    strcpy(pathname, "/");
+    if(tok2 != NULL){
+      strcat(pathname, tok2); 
+    }
+    clienterror(connfd, "", "Got inside", "", "");
 }
 
 // generates the proxy's GET request
-void generate_request(rio_t rio_request, char* method, char* hostname, char* pathname, char* version, char* generated_request){
+void generate_request(rio_t rio_request, char* method, char* hostname, char* pathname, char* version, char* server_port, char* generated_request){
   char line_buf[MAXLINE];
   char temp[MAXLINE];
 
@@ -137,7 +158,7 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
   while(strcmp(line_buf, "\r\n")) {
     // check the line for headers
     if (strstr(line_buf, "Host:")){
-      sprintf(temp, "Host: %s\r\n", hostname);
+      sprintf(temp, "Host: %s:%s\r\n", hostname, server_port);
       strcat(generated_request, temp);
       host = 1;
     }
@@ -199,6 +220,7 @@ void handle_request_response(int connfd) {
   rio_t rio_request, rio_response;
   char generated_request[MAX_OBJECT_SIZE];
   int clientfd;
+  char server_port[MAXLINE];
 
   /* ---------------------- Read request line and headers ---------------------*/
   Rio_readinitb(&rio_request, connfd);
@@ -218,7 +240,7 @@ void handle_request_response(int connfd) {
   /* --------------------------- Check Http Version --------------------------- */
   if(strcmp(version, "HTTP/1.0") != 0){
     // print error message
-    clienterror(connfd, method, "501", "Note Implemented", "Only HTTP/1.0 is Implemented");
+    clienterror(connfd, method, "501", "Not Implemented", "Only HTTP/1.0 is Implemented");
 
     // set HTTP version
     strncpy(version, "HTTP/1.0", strlen("HTTP/1.0"));
@@ -226,7 +248,8 @@ void handle_request_response(int connfd) {
   char buf2[MAXLINE];
 
   /* ----------------------------- Parsing the URI ---------------------------- */
-  split_uri(connfd, uri, hostname, pathname);
+  clienterror(connfd, uri, "Got here", "", "");
+  split_uri(connfd, uri, hostname, pathname, server_port);
 
 
   // testing
@@ -237,7 +260,7 @@ void handle_request_response(int connfd) {
   // Rio_writen(connfd, buffer, strlen(buffer));
 
   /* -------------------------- Generate The Request -------------------------- */
-  generate_request(rio_request, method, hostname, pathname, version, generated_request);
+  generate_request(rio_request, method, hostname, pathname, version, server_port, generated_request);
   char buffer[MAXLINE];
   sprintf(buffer, "request: %s\n", generated_request);
   Rio_writen(connfd, buffer, strlen(buffer));
@@ -246,7 +269,7 @@ void handle_request_response(int connfd) {
 
   //TODO: make my proxy work when the port number is inlcuded (ex http://127.0.0.1:8888)
   // connect to the server
-  clientfd = Open_clientfd(hostname, "8888");
+  clientfd = Open_clientfd(hostname, server_port);
   
   // send it the request
   Rio_writen(clientfd, generated_request, strlen(generated_request));
@@ -259,7 +282,7 @@ void handle_request_response(int connfd) {
   while( (n = Rio_readnb(&rio_response, responseBuf, MAXLINE)) > 0 ){
     Rio_writen(connfd, responseBuf, n); //FIXME: I think that nothing is being returned
     char buffer[MAXLINE];
-    sprintf(buffer, "response: %s\n", hostname);
+    sprintf(buffer, "response: %s\n", responseBuf);
     Rio_writen(connfd, buffer, strlen(buffer));
   }
   // clienterror(connfd, method, "here", "here", "here");
