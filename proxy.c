@@ -15,6 +15,7 @@ static const char *user_agent_hdr =
 /*                              Function Headers                              */
 /* -------------------------------------------------------------------------- */
 void handle_request_response(int connfd);
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 
 /* -------------------------------------------------------------------------- */
 /*                                    Main                                    */
@@ -49,6 +50,7 @@ int main(int argc, char **argv) {
     printf("Connected to (%s, %s)\n", client_hostname, client_port);
 
     // handle one client/server itneraction
+    fprintf(stdout, "before\n");
     handle_request_response(connfd);
 
     // closes the Accepted socket
@@ -65,14 +67,26 @@ int main(int argc, char **argv) {
 
 // given a uri (url) splits it into the hostname, pathname and the server port
 // if no server port is given in the uri, then the server port is set to 80
-void split_uri(int connfd, char* uri, char* hostname, char* pathname, char* server_port){
+// 0 if successful, -1 if failed
+int split_uri(int connfd, char* uri, char* hostname, char* pathname, char* server_port){
     char* ref1, ref2;
     char host_and_port[1000];
     char uri2[1000];
     strcpy(uri2, uri);
 
+    // if it is not an http connection
+    if(!strstr(uri, "http://")){
+      return -1;
+    }
+
     // grab the domain name and the port number if there is one
     char* tok = strtok_r(uri, "//", &ref1);
+
+    fprintf(stdout, "tok: %s:", tok);
+    if(strcmp(tok, uri) == 0){
+      return -1;
+    }
+
     tok = strtok_r(ref1, "/", &ref1);
     strcpy(host_and_port, tok);
 
@@ -102,6 +116,7 @@ void split_uri(int connfd, char* uri, char* hostname, char* pathname, char* serv
     if(tok2 != NULL){
       strcat(pathname, tok2); 
     }
+    return 0;
 }
 
 // generates the proxy's GET request
@@ -157,6 +172,34 @@ void generate_request(rio_t rio_request, char* method, char* hostname, char* pat
   
 }
 
+
+/*
+ * clienterror - returns an error message to the client
+ from tiny.c
+ */
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) 
+{
+    char buf[MAXLINE];
+
+    /* Print the HTTP response headers */
+    sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Content-type: text/html\r\n\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+
+    /* Print the HTTP response body */
+    sprintf(buf, "<html><title>Tiny Error</title>");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "<body bgcolor=""ffffff"">\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "%s: %s\r\n", errnum, shortmsg);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "<p>%s: %s\r\n", longmsg, cause);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "<hr><em>The Tiny Web server</em>\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+}
+
 /* -------------------------------------------------------------------------- */
 /*                           handle_request_response                          */
 /* -------------------------------------------------------------------------- */
@@ -171,6 +214,7 @@ void handle_request_response(int connfd) {
   char generated_request[MAX_OBJECT_SIZE];
   int clientfd;
   char server_port[MAXLINE];
+  int flag = 0;
 
   /* ---------------------- Read request line and headers ---------------------*/
   Rio_readinitb(&rio_request, connfd);
@@ -186,7 +230,8 @@ void handle_request_response(int connfd) {
     return;
   }
 
-  printf("%s", version);
+  printf("%s\n", version);
+  
 
 
   /* --------------------------- Check Http Version --------------------------- */
@@ -199,11 +244,16 @@ void handle_request_response(int connfd) {
   /* ----------------------------- Parsing the URI ---------------------------- */
   char buf2[MAXLINE];
   // clienterror(connfd, uri, "Got here", "", "");
-  split_uri(connfd, uri, hostname, pathname, server_port);
+  fprintf(stdout, "\nafter\n");
+  flag = split_uri(connfd, uri, hostname, pathname, server_port);
+  if(flag == -1){
+    clienterror(connfd, method, "Bad Request", "The uri was not formatted correctly", "");
+    return;
+  }
 
   /* -------------------------- Generate The Request -------------------------- */
   generate_request(rio_request, method, hostname, pathname, version, server_port, generated_request);
-
+  
   /* ---------------------------- Forward the Request ---------------------------- */
 
   // connect to the server
